@@ -655,13 +655,21 @@ def scrape_chat(driver):
             f"Warning! {len(messages)} messages scraped but {chat_messages_count} expected.")
 
     # Create a dict with chat date as key and empty list as value which will store all msgs for that date
-    messages_dict = {msg_list['datetime'].strftime(
-        "%m/%d/%Y"): [] for msg_list in messages}
+    messages_dict = {}
+
+    for m in messages:
+        try:
+            messages_dict[m['datetime'].strftime("%d/%m/%Y")] = []
+        except AttributeError:
+            continue
 
     # Update the dict by inserting message content as values
     for m in messages:
-        messages_dict[m['datetime'].strftime("%m/%d/%Y")].append(
-            {'time': m['datetime'].strftime("%I:%M %p"), 'sender': m['sender'], 'message': m['message']})
+        try:
+            messages_dict[m['datetime'].strftime("%d/%m/%Y")].append(
+                {'time': m['datetime'].strftime("%H:%M"), 'sender': m['sender'], 'message': m['message']})
+        except AttributeError:
+            continue
 
     return messages_dict
 
@@ -779,7 +787,7 @@ def find_chat_datetime_when_copyable_does_not_exist(message, last_msg_date):
                             # Use the previous messages date if it exists
                             if last_msg_date:
                                 sibling_date = last_msg_date.strftime(
-                                    '%m/%d/%Y')
+                                    '%d/%m/%Y')
                             else:
                                 # Otherwise use the next available subsequent date (note this fires only on the first message w/ rare conditions when copyable-text doesn't exist; could assign the wrong date if for example the next available date is 1+ day in advance of the current message)
                                 sibling_date = message.find_next_sibling(
@@ -791,14 +799,14 @@ def find_chat_datetime_when_copyable_does_not_exist(message, last_msg_date):
 
                         # Build date/time object
                         message_datetime = parse_datetime(
-                            f"{media_message_datetime.strftime('%m/%d/%Y')} {media_message_datetime.strftime('%I:%M %p')}")
+                            f"{media_message_datetime.strftime('%d/%m/%Y')} {media_message_datetime.strftime('%H:%M')}")
 
                         return message_datetime
 
                     # Otherwise last message's date/time (note this could assign the wrong date if for example the last message was 1+ days ago)
                     except ValueError:
                         message_datetime = parse_datetime(
-                            f"{last_msg_date.strftime('%m/%d/%Y')} {message_time}")
+                            f"{last_msg_date.strftime('%d/%m/%Y')} {message_time}")
 
                         return message_datetime
 
@@ -815,22 +823,22 @@ def parse_datetime(text, time_only=False):
 
     # Try parsing when text is some datetime value e.g. 2/15/2021 2:35 P.M.
     if not time_only:
-        for fmt in ('%m/%d/%Y %I:%M %p', '%Y-%m-%d %I:%M %p'):
+        for fmt in ('%d/%m/%Y %H:%M', '%Y-%m-%d %H:%M'):
             try:
                 return datetime.strptime(text, fmt)
             except ValueError:
                 continue
         raise ValueError(
-            f"{text} does not match a valid datetime format of '%m/%d/%Y %I:%M %p' or '%Y-%m-%d %I:%M %p'. Make sure your WhatsApp language settings on your phone are set to English.")
+            f"{text} does not match a valid datetime format of '%d/%m/%Y %H:%M' or '%Y-%m-%d %H:%M %p'. Make sure your WhatsApp language settings on your phone are set to English.")
 
     # Try parsing when text is some time value e.g. 2:35 PM
     else:
         try:
-            return datetime.strptime(text, '%I:%M %p')
+            return datetime.strptime(text, '%H:%M %p')
         except ValueError:
             pass
         raise ValueError(
-            f"{text} does not match expected time format of '%I:%M %p'. Make sure your WhatsApp language settings on your phone are set to English.")
+            f"{text} does not match expected time format of '%H:%M %p'. Make sure your WhatsApp language settings on your phone are set to English.")
 
 
 def is_media_in_message(message):
